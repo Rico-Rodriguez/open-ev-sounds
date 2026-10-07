@@ -1,4 +1,4 @@
-import { Engine } from '../audio/engine'
+import { AUDIBLE_THROTTLE_FLOOR, Engine } from '../audio/engine'
 import { exportWav } from '../audio/exportWav'
 import { PATCHES, patchById } from '../domain/patches'
 import type { DriveInput, Studio } from '../domain/types'
@@ -176,6 +176,14 @@ export function mountDeck(root: HTMLElement): void {
     modeLabel.textContent = 'GPS'
   })
 
+  // Unlock AudioContext in the same gesture as the tap (iOS Safari).
+  // pointerdown fires before click; touchstart covers older WebKit.
+  const primeAudio = (): void => {
+    engine.prime()
+  }
+  startBtn.addEventListener('pointerdown', primeAudio)
+  startBtn.addEventListener('touchstart', primeAudio, { passive: true })
+
   startBtn.addEventListener('click', async () => {
     if (engine.phase === 'running') {
       engine.stop()
@@ -185,14 +193,50 @@ export function mountDeck(root: HTMLElement): void {
       phaseLabel.textContent = 'Stopped'
       return
     }
-    await engine.start()
-    engine.setDrive({ ...drive })
-    engine.setStudio({ ...studio })
+
+    // Re-prime synchronously at click start, then await resume inside start().
+    engine.prime()
+
+    // Nudge near-zero throttle so Start is never silent "gain 0".
+    if (drive.throttle < 0.05) {
+      drive.throttle = AUDIBLE_THROTTLE_FLOOR
+      throttle.input.value = String(drive.throttle)
+      throttle.output.textContent = format(drive.throttle)
+      rpmOut.textContent = `${motorRpm(drive)}`
+    }
+
+    await engine.start({ drive: { ...drive }, studio: { ...studio } })
+
+    // Keep UI in sync if engine floored throttle.
+    const live = engine.getDrive()
+    if (live.throttle !== drive.throttle) {
+      drive.throttle = live.throttle
+      throttle.input.value = String(drive.throttle)
+      throttle.output.textContent = format(drive.throttle)
+      rpmOut.textContent = `${motorRpm(drive)}`
+    }
+
     startBtn.textContent = 'Stop'
     startBtn.dataset.on = 'true'
     phaseDot.classList.add('on')
     phaseLabel.textContent = 'Running'
+
+    // If still suspended (rare), surface it — better than fake "Running".
+    const ctx = engine.getAudioContext()
+    if (ctx && ctx.state !== 'running') {
+      phaseLabel.textContent = 'Tap again'
+      void engine.ensureResumed().then((ok) => {
+        if (ok) phaseLabel.textContent = 'Running'
+      })
+    }
   })
+
+  // Any drive gesture while running also resumes a suspended context.
+  const resumeIfRunning = (): void => {
+    if (engine.phase === 'running') void engine.ensureResumed()
+  }
+  throttle.input.addEventListener('pointerdown', resumeIfRunning)
+  speed.input.addEventListener('pointerdown', resumeIfRunning)
 
   exportBtn.addEventListener('click', async () => {
     exportBtn.disabled = true

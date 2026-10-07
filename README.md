@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL. Click **Start**, push **Throttle**, pick a patch. Tap **GPS speed** in the car (HTTPS or localhost) to drive pitch from real speed.
+Open the printed local URL. Tap **Start** (audio unlocks on that gesture — important on iOS), then push **Throttle**, pick a patch. Tap **GPS speed** in the car (HTTPS or localhost) to drive pitch from real speed. If the phone is on the hardware silent switch, unmute or use Bluetooth / headphones.
 
 ```bash
 npm run build
