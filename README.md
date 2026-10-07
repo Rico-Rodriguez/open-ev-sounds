@@ -2,7 +2,7 @@
 
 Open-source EV engine sounds in the browser. Free forever. No account. No subscription.
 
-Paid apps rent you a soundtrack. HUM is a Web Audio synthesizer you run locally, tweak, and fork. Soft cabin hum, inverter whine, sci-fi drive. Manual throttle, optional GPS speed, WAV export.
+Paid apps rent you a soundtrack. HUM is a Web Audio synthesizer you run locally, tweak, and fork. Soft cabin hum, inverter whine, traction growl, turbine climb, and more. Manual throttle, optional GPS speed, WAV export.
 
 ## Why this exists
 
@@ -31,21 +31,42 @@ npm run preview
 
 Static files land in `dist/`. Push to `main` and GitHub Actions deploys Pages from `.github/workflows/pages.yml`.
 
+Live demo: [rico-rodriguez.github.io/open-ev-sounds](https://rico-rodriguez.github.io/open-ev-sounds/).
+
 ## Patches
+
+All patches are procedural Web Audio (no third-party sample packs). Pitch, filter, and layer gains track **throttle + speed** so cruise and load both change the voice.
 
 | Id | Feel |
 | --- | --- |
-| `soft-hum` | Quiet motor presence |
-| `inverter-whine` | High inverter whistle with speed |
+| `soft-hum` | Quiet cabin motor floor that fills in as you roll |
+| `inverter-whine` | High traction-inverter whistle climbing with mph |
+| `traction-growl` | Loaded low motor body under throttle |
+| `turbine-climb` | Airy turbine character; air and pitch open with speed |
+| `gear-mesh` | Reduction-gear metallic sing tied to road speed |
+| `cabin-whisper` | Near-silent EV presence |
 | `sci-fi` | Pulse-heavy demo tone |
+
+### Layer model (speed mapping)
+
+Each layer in `src/domain/patches.ts` maps drive inputs through `targetsForLayer` (`src/domain/motor.ts`):
+
+- **Frequency** — `baseHz + speed×hzPerMph + throttle×hzPerThrottle` (× studio pitch)
+- **Gain** — idle→peak shaped by throttle, plus optional `gainPerMph` so coasting still has body
+- **Filter** — cutoff opens with throttle and optional `filterPerMph`; `bandpass` for inverter / gear focus
+- **Detune** — optional cents for thicker harmonic stacks
 
 Add a patch in `src/domain/patches.ts`. See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## How it works
 
-`DriveInput` (throttle + speed) and studio knobs feed `targetsForLayer` in `src/domain/motor.ts`. `Engine` in `src/audio/engine.ts` owns the `AudioContext` and maps those targets onto oscillators, noise, filters, and gains. GPS lives in `src/drive/gps.ts` and only writes `speedMph`.
+`DriveInput` (throttle + speed) and studio knobs feed `targetsForLayer` in `src/domain/motor.ts`. `Engine` in `src/audio/engine.ts` owns the `AudioContext` and maps those targets onto oscillators, pink-ish noise, filters, soft compression, and gains. Pulse layers get a light LFO shimmer. GPS lives in `src/drive/gps.ts` and only writes `speedMph`.
 
 Product plan: [docs/plan.md](./docs/plan.md).
+
+## UI
+
+Mobile-first sound deck for a phone in the car: large brand mark, one frosted glass control sheet, horizontal patch chips, primary throttle, GPS / WAV actions. Soft daylight materials — not a dense dashboard HUD.
 
 ## Legal / safety
 

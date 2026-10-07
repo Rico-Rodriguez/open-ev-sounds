@@ -16,8 +16,9 @@ npm run dev
 1. Open `src/domain/patches.ts`.
 2. Copy an existing `Patch` object.
 3. Give it a unique `id`, a short `name`, and a one-line `blurb`.
-4. Tune `layers` (`tone` / `noise` / `pulse`) until it sounds right with throttle and speed moving.
-5. Run the app and check Start → throttle → speed by ear.
+4. Tune `layers` (`tone` / `noise` / `pulse`) until it sounds right with throttle and speed moving. Prefer `hzPerMph` / `gainPerMph` / `filterPerMph` so cruise changes the voice, not only throttle.
+5. Optional: `filterType: 'bandpass'`, `detuneCents` for thicker stacks.
+6. Run the app and check Start → throttle → speed by ear.
 
 The UI picks up every entry in `PATCHES`. No separate registry step.
 
