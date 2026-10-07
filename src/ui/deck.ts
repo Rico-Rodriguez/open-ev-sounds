@@ -2,6 +2,7 @@ import { Engine } from '../audio/engine'
 import { exportWav } from '../audio/exportWav'
 import { PATCHES, patchById } from '../domain/patches'
 import type { DriveInput, Studio } from '../domain/types'
+import { startGps, type GpsHandle } from '../drive/gps'
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -14,6 +15,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node
 }
 
+function motorRpm(drive: DriveInput): number {
+  return Math.round(800 + drive.speedMph * 40 + drive.throttle * 4200)
+}
+
 export function mountDeck(root: HTMLElement): void {
   let patchId = PATCHES[0]?.id ?? 'soft-hum'
   const drive: DriveInput = { throttle: 0.35, speedMph: 25 }
@@ -24,6 +29,8 @@ export function mountDeck(root: HTMLElement): void {
     volume: 0.7,
   }
   const engine = new Engine(patchById(patchId))
+  let gps: GpsHandle | null = null
+  let gpsOn = false
 
   const deck = el('div', 'deck')
   const brandBlock = el('header', 'brand-block')
@@ -68,13 +75,14 @@ export function mountDeck(root: HTMLElement): void {
   const throttle = makeSlider('Throttle', 0, 1, 0.01, drive.throttle, (v) => {
     drive.throttle = v
     engine.setDrive({ ...drive })
-    rpmOut.textContent = `${Math.round(800 + drive.speedMph * 40 + drive.throttle * 4200)}`
+    rpmOut.textContent = `${motorRpm(drive)}`
   })
   const speed = makeSlider('Speed mph', 0, 120, 1, drive.speedMph, (v) => {
+    if (gpsOn) return
     drive.speedMph = v
     engine.setDrive({ ...drive })
     speedOut.textContent = `${Math.round(v)}`
-    rpmOut.textContent = `${Math.round(800 + drive.speedMph * 40 + drive.throttle * 4200)}`
+    rpmOut.textContent = `${motorRpm(drive)}`
   })
   const pitch = makeSlider('Pitch', 0.5, 1.8, 0.01, studio.pitch, (v) => {
     studio.pitch = v
@@ -112,8 +120,52 @@ export function mountDeck(root: HTMLElement): void {
   const actions = el('div', 'actions')
   const startBtn = el('button', 'primary', 'Start')
   startBtn.type = 'button'
+  const gpsBtn = el('button', 'ghost', 'GPS speed')
+  gpsBtn.type = 'button'
+  gpsBtn.setAttribute('aria-pressed', 'false')
   const exportBtn = el('button', 'ghost', 'Export WAV')
   exportBtn.type = 'button'
+
+  function setSpeedDisplay(mph: number): void {
+    const clamped = Math.min(120, Math.max(0, mph))
+    drive.speedMph = clamped
+    engine.setDrive({ ...drive })
+    speedOut.textContent = `${Math.round(clamped)}`
+    rpmOut.textContent = `${motorRpm(drive)}`
+    speed.input.value = String(Math.round(clamped))
+    speed.output.textContent = format(Math.round(clamped))
+  }
+
+  function stopGps(): void {
+    gps?.stop()
+    gps = null
+    gpsOn = false
+    gpsBtn.setAttribute('aria-pressed', 'false')
+    gpsBtn.textContent = 'GPS speed'
+    speed.input.disabled = false
+    modeLabel.textContent = 'manual'
+  }
+
+  gpsBtn.addEventListener('click', () => {
+    if (gpsOn) {
+      stopGps()
+      return
+    }
+    const handle = startGps((mph) => {
+      if (!gpsOn) return
+      setSpeedDisplay(mph)
+    })
+    if (!handle) {
+      modeLabel.textContent = 'gps unavailable'
+      return
+    }
+    gps = handle
+    gpsOn = true
+    gpsBtn.setAttribute('aria-pressed', 'true')
+    gpsBtn.textContent = 'GPS on'
+    speed.input.disabled = true
+    modeLabel.textContent = 'gps'
+  })
 
   startBtn.addEventListener('click', async () => {
     if (engine.phase === 'running') {
@@ -150,7 +202,7 @@ export function mountDeck(root: HTMLElement): void {
     }
   })
 
-  actions.append(startBtn, exportBtn)
+  actions.append(startBtn, gpsBtn, exportBtn)
 
   const status = el('div', 'status')
   const phaseWrap = el('span')
@@ -162,21 +214,34 @@ export function mountDeck(root: HTMLElement): void {
   const speedOut = document.createElement('strong')
   speedOut.textContent = `${Math.round(drive.speedMph)}`
   const speedWrap = el('span')
-  speedWrap.append(document.createTextNode('speed '), speedOut, document.createTextNode(' mph'))
+  speedWrap.append(
+    document.createTextNode('speed '),
+    speedOut,
+    document.createTextNode(' mph'),
+  )
 
   const rpmOut = document.createElement('strong')
-  rpmOut.textContent = `${Math.round(800 + drive.speedMph * 40 + drive.throttle * 4200)}`
+  rpmOut.textContent = `${motorRpm(drive)}`
   const rpmWrap = el('span')
-  rpmWrap.append(document.createTextNode('motor '), rpmOut, document.createTextNode(' rpm*'))
+  rpmWrap.append(
+    document.createTextNode('motor '),
+    rpmOut,
+    document.createTextNode(' rpm*'),
+  )
 
-  status.append(phaseWrap, speedWrap, rpmWrap)
+  const modeLabel = document.createElement('strong')
+  modeLabel.textContent = 'manual'
+  const modeWrap = el('span')
+  modeWrap.append(document.createTextNode('drive '), modeLabel)
+
+  status.append(phaseWrap, speedWrap, rpmWrap, modeWrap)
 
   stage.append(patches, blurb, controls, actions, status)
 
   const foot = el(
     'footer',
     'foot',
-    '*rpm is a display mapping for feel, not a real motor tach. Connect phone Bluetooth to your car stereo or an exterior speaker. Stay legal with outdoor volume.',
+    '*rpm is a display mapping for feel, not a real motor tach. GPS uses your device location for speed only. Connect phone Bluetooth to a car stereo or exterior speaker. Stay legal with outdoor volume.',
   )
 
   deck.append(brandBlock, stage, foot)
@@ -190,7 +255,7 @@ function makeSlider(
   step: number,
   value: number,
   onChange: (v: number) => void,
-): { row: HTMLElement } {
+): { row: HTMLElement; input: HTMLInputElement; output: HTMLOutputElement } {
   const row = el('div', 'row')
   const lab = el('label', undefined, label)
   const input = document.createElement('input')
@@ -206,9 +271,8 @@ function makeSlider(
     out.textContent = format(v)
     onChange(v)
   })
-  lab.htmlFor = ''
   row.append(lab, input, out)
-  return { row }
+  return { row, input, output: out }
 }
 
 function format(v: number): string {

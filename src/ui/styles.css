@@ -293,6 +293,17 @@ button.ghost:hover {
   color: var(--amber);
 }
 
+button.ghost[aria-pressed='true'] {
+  border-color: var(--electric);
+  color: var(--electric);
+  background: rgba(109, 255, 176, 0.1);
+}
+
+input[type='range']:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .status {
   display: flex;
   gap: 1.25rem;
