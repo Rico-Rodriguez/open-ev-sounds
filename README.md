@@ -22,7 +22,9 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL. Tap **Start** (audio unlocks on that gesture — important on iOS), then push **Throttle**, pick a patch. Tap **GPS speed** in the car (HTTPS or localhost) to drive pitch from real speed. If the phone is on the hardware silent switch, unmute or use Bluetooth / headphones.
+Open the printed local URL. Tap **Start** (audio unlocks on that gesture — important on iOS), then push **Throttle**, pick a patch. Tap **GPS speed** in the car (HTTPS or localhost) to drive pitch from real speed.
+
+**iPhone tip:** turn off Silent — the Ring/Silent switch mutes web audio. The in-app tip under Start says the same. Or use Bluetooth / headphones.
 
 ```bash
 npm run build

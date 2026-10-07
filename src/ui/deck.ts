@@ -257,6 +257,12 @@ export function mountDeck(root: HTMLElement): void {
 
   actions.append(startBtn, gpsBtn, exportBtn)
 
+  const audioTip = el(
+    'p',
+    'audio-tip',
+    'iPhone: turn off Silent — the Ring/Silent switch mutes web audio.',
+  )
+
   const status = el('div', 'status')
   const phaseWrap = el('span', 'status-pill')
   const phaseDot = el('span', 'pulse-dot')
@@ -281,7 +287,7 @@ export function mountDeck(root: HTMLElement): void {
 
   status.append(phaseWrap, speedWrap, rpmWrap, modeWrap)
 
-  sheet.append(patchSection, driveSection, studioSection, actions, status)
+  sheet.append(patchSection, driveSection, studioSection, actions, audioTip, status)
   stage.append(sheet)
 
   const foot = el(

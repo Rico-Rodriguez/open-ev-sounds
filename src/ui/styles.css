@@ -333,6 +333,14 @@ input[type='range']:disabled {
   gap: 0.65rem;
 }
 
+.audio-tip {
+  margin: -0.35rem 0 0;
+  color: var(--faint);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 button.primary,
 button.ghost {
   appearance: none;
