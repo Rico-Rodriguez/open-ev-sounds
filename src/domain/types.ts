@@ -10,18 +10,31 @@ export type Layer = {
   hzPerMph: number
   /** Extra Hz when throttle is fully open. */
   hzPerThrottle: number
-  /** Quiet floor gain (0–1) with throttle at 0. */
+  /** Quiet floor gain (0–1) with throttle at 0 and speed near 0. */
   idleGain: number
   /** Peak gain (0–1) with throttle at 1. */
   peakGain: number
+  /**
+   * Extra gain from speed alone (added at `referenceMph`).
+   * Gives coasting / cruise presence so pitch is not the only speed cue.
+   */
+  gainPerMph?: number
+  /** Speed where `gainPerMph` is fully applied. Default 80. */
+  referenceMph?: number
   /** Oscillator waveform for tone/pulse layers. */
   wave?: ToneWave
-  /** Low-pass cutoff at idle, Hz. */
+  /** Filter cutoff at idle, Hz. */
   filterHz: number
   /** Extra filter Hz opened by throttle. */
   filterPerThrottle: number
+  /** Extra filter Hz opened per mph. */
+  filterPerMph?: number
   /** Filter Q. */
   q: number
+  /** Biquad type. Default lowpass; bandpass suits inverter / gear whine. */
+  filterType?: BiquadFilterType
+  /** Static oscillator detune in cents for thicker stacks. */
+  detuneCents?: number
 }
 
 export type Patch = {

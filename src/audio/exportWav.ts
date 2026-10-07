@@ -12,19 +12,30 @@ export async function exportWav(
   const length = sampleRate * seconds
   const ctx = new OfflineAudioContext(1, length, sampleRate)
   const master = ctx.createGain()
-  master.gain.value = 0.9
-  master.connect(ctx.destination)
+  master.gain.value = 0.85
+
+  const compressor = ctx.createDynamicsCompressor()
+  compressor.threshold.value = -18
+  compressor.knee.value = 12
+  compressor.ratio.value = 3.2
+  compressor.attack.value = 0.01
+  compressor.release.value = 0.18
+  master.connect(compressor)
+  compressor.connect(ctx.destination)
 
   const noise = ctx.createBuffer(1, sampleRate * 2, sampleRate)
   const noiseData = noise.getChannelData(0)
+  let last = 0
   for (let i = 0; i < noiseData.length; i++) {
-    noiseData[i] = Math.random() * 2 - 1
+    const white = Math.random() * 2 - 1
+    last = (last + 0.02 * white) / 1.02
+    noiseData[i] = white * 0.35 + last * 0.65
   }
 
   for (const layer of patch.layers) {
     const t = targetsForLayer(layer, drive, studio)
     const filter = ctx.createBiquadFilter()
-    filter.type = 'lowpass'
+    filter.type = t.filterType
     filter.frequency.value = t.filterHz
     filter.Q.value = t.q
 
@@ -45,6 +56,7 @@ export async function exportWav(
     const osc = ctx.createOscillator()
     osc.type = layer.wave ?? (layer.kind === 'pulse' ? 'square' : 'sine')
     osc.frequency.value = t.frequency
+    osc.detune.value = t.detuneCents
     osc.connect(filter)
     osc.start(0)
     osc.stop(seconds)
